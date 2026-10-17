@@ -1,19 +1,26 @@
 package com.checkout.payment.gateway.controller;
 
 
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.checkout.payment.gateway.enums.PaymentStatus;
 import com.checkout.payment.gateway.model.PaymentResponse;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.YearMonth;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 @SpringBootTest
@@ -22,6 +29,8 @@ class PaymentGatewayControllerTest {
 
   @Autowired
   private MockMvc mvc;
+  @Autowired
+  private ObjectMapper objectMapper;
   @Autowired
   PaymentsRepository paymentsRepository;
 
@@ -52,6 +61,128 @@ class PaymentGatewayControllerTest {
   void whenPaymentWithIdDoesNotExistThen404IsReturned() throws Exception {
     mvc.perform(MockMvcRequestBuilders.get("/payment/" + UUID.randomUUID()))
         .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.message").value("Page not found"));
+        .andExpect(jsonPath("$.message").value("Payment not found"));
+  }
+
+  @Test
+  void whenPaymentIdIsNotAUuidThen400IsReturned() throws Exception {
+    mvc.perform(MockMvcRequestBuilders.get("/payment/not-a-uuid"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.message").value("Invalid payment id"));
+  }
+
+  @Test
+  void whenCardNumberInvalidThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("card_number", "123");
+
+    assertRejected(postPayment(request), "Card number must be 14-19 digits");
+  }
+
+  @Test
+  void whenExpiryMonthInvalidThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("expiry_month", 13);
+
+    assertRejected(postPayment(request), "Expiry month must be between 1 and 12");
+  }
+
+  @Test
+  void whenExpiryYearMissingThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.remove("expiry_year");
+
+    assertRejected(postPayment(request), "Expiry year is required");
+  }
+
+  @Test
+  void whenCurrencyNotSupportedThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("currency", "JPY");
+
+    assertRejected(postPayment(request), "Currency must be one of GBP, EUR, USD");
+  }
+
+  @Test
+  void whenAmountNotPositiveThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("amount", 0);
+
+    assertRejected(postPayment(request), "Amount must be a positive integer");
+  }
+
+  @Test
+  void whenCvvInvalidThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("cvv", "12");
+
+    assertRejected(postPayment(request), "CVV must be 3-4 digits");
+  }
+
+  @Test
+  void whenMultipleFieldsInvalidThenAllErrorsAreReturned() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("card_number", "123");
+    request.put("currency", "JPY");
+    request.put("cvv", "12");
+
+    postPayment(request)
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value("Rejected"))
+        .andExpect(jsonPath("$.errors", containsInAnyOrder(
+            "Card number must be 14-19 digits",
+            "Currency must be one of GBP, EUR, USD",
+            "CVV must be 3-4 digits")));
+  }
+
+  @Test
+  void whenCardIsExpiredThenPaymentIsRejected() throws Exception {
+    YearMonth lastMonth = YearMonth.now().minusMonths(1);
+    Map<String, Object> request = validRequest();
+    request.put("expiry_month", lastMonth.getMonthValue());
+    request.put("expiry_year", lastMonth.getYear());
+
+    assertRejected(postPayment(request), "Expiry date must be in future");
+  }
+
+  @Test
+  void whenAmountIsNotAnIntegerThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("amount", 10.50);
+
+    assertRejected(postPayment(request), "Malformed request body");
+  }
+
+  @Test
+  void whenBodyIsMalformedThenPaymentIsRejected() throws Exception {
+    ResultActions result = mvc.perform(MockMvcRequestBuilders.post("/payment")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content("{\"card_number\": "));
+
+    assertRejected(result, "Malformed request body");
+  }
+
+  private Map<String, Object> validRequest() {
+    Map<String, Object> request = new HashMap<>();
+    request.put("card_number", "2222405343248877");
+    request.put("expiry_month", 4);
+    request.put("expiry_year", YearMonth.now().getYear() + 1);
+    request.put("currency", "GBP");
+    request.put("amount", 100);
+    request.put("cvv", "123");
+    return request;
+  }
+
+  private ResultActions postPayment(Map<String, Object> request) throws Exception {
+    return mvc.perform(MockMvcRequestBuilders.post("/payment")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(request)));
+  }
+
+  private void assertRejected(ResultActions result, String expectedError) throws Exception {
+    result.andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.status").value("Rejected"))
+        .andExpect(jsonPath("$.errors", hasSize(1)))
+        .andExpect(jsonPath("$.errors[0]").value(expectedError));
   }
 }
