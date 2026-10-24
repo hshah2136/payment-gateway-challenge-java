@@ -21,7 +21,8 @@ public class BankClient {
 
   public BankPaymentResponse processPayment(BankPaymentRequest request) {
     try {
-      BankPaymentResponse response = restTemplate.postForObject(bankUrl, request, BankPaymentResponse.class);
+      BankPaymentResponse response = restTemplate.postForObject(bankUrl, request,
+          BankPaymentResponse.class);
       if (response == null) {
         throw new BankUnavailableException("Empty response from bank");
       }

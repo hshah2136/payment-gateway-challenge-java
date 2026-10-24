@@ -35,7 +35,8 @@ class PaymentValidationServiceTest {
   void whenExpiryWasLastMonthThenItIsInvalid() {
     YearMonth lastMonth = YearMonth.now().minusMonths(1);
 
-    assertFalse(validationService.isExpiryDateValid(lastMonth.getMonthValue(), lastMonth.getYear()));
+    assertFalse(
+        validationService.isExpiryDateValid(lastMonth.getMonthValue(), lastMonth.getYear()));
   }
 
   @Test

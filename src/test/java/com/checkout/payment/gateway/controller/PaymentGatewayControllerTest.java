@@ -17,11 +17,11 @@ import com.checkout.payment.gateway.model.BankPaymentResponse;
 import com.checkout.payment.gateway.model.PaymentResponse;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
-import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -212,7 +212,8 @@ class PaymentGatewayControllerTest {
 
   @Test
   void whenBankUnavailableThenBadGatewayIsReturned() throws Exception {
-    when(bankClient.processPayment(any())).thenThrow(new BankUnavailableException("Bank request failed"));
+    when(bankClient.processPayment(any())).thenThrow(
+        new BankUnavailableException("Bank request failed"));
 
     postPayment(validRequest())
         .andExpect(status().isBadGateway())

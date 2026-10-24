@@ -1,26 +1,25 @@
 package com.checkout.payment.gateway.service;
 
-import com.checkout.payment.gateway.client.BankClient;
-import com.checkout.payment.gateway.exception.BankUnavailableException;
-import com.checkout.payment.gateway.model.BankPaymentRequest;
-import com.checkout.payment.gateway.model.BankPaymentResponse;
-import com.checkout.payment.gateway.model.PostPaymentRequest;
-import com.checkout.payment.gateway.repository.PaymentsRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.time.YearMonth;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import com.checkout.payment.gateway.client.BankClient;
+import com.checkout.payment.gateway.exception.BankUnavailableException;
+import com.checkout.payment.gateway.model.BankPaymentRequest;
+import com.checkout.payment.gateway.model.BankPaymentResponse;
+import com.checkout.payment.gateway.model.PostPaymentRequest;
+import com.checkout.payment.gateway.repository.PaymentsRepository;
+import java.time.YearMonth;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class PaymentGatewayServiceTest {
@@ -36,7 +35,8 @@ class PaymentGatewayServiceTest {
 
   @BeforeEach
   void setUp() {
-    service = new PaymentGatewayService(paymentsRepository, new PaymentValidationService(), bankClient);
+    service = new PaymentGatewayService(paymentsRepository, new PaymentValidationService(),
+        bankClient);
   }
 
   @Test
@@ -60,7 +60,8 @@ class PaymentGatewayServiceTest {
 
   @Test
   void whenBankUnavailableThenPaymentNotStored() {
-    when(bankClient.processPayment(any())).thenThrow(new BankUnavailableException("Bank request failed"));
+    when(bankClient.processPayment(any())).thenThrow(
+        new BankUnavailableException("Bank request failed"));
 
     assertThrows(BankUnavailableException.class, () -> service.processPayment(validRequest()));
     verify(paymentsRepository, never()).add(any());

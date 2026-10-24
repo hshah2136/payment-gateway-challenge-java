@@ -6,8 +6,8 @@ import com.checkout.payment.gateway.exception.PaymentNotFoundException;
 import com.checkout.payment.gateway.exception.PaymentRejectedException;
 import com.checkout.payment.gateway.model.BankPaymentRequest;
 import com.checkout.payment.gateway.model.BankPaymentResponse;
-import com.checkout.payment.gateway.model.PostPaymentRequest;
 import com.checkout.payment.gateway.model.PaymentResponse;
+import com.checkout.payment.gateway.model.PostPaymentRequest;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -23,15 +23,17 @@ public class PaymentGatewayService {
   private final PaymentValidationService validationService;
   private final BankClient bankClient;
 
-  public PaymentGatewayService(PaymentsRepository paymentsRepository, PaymentValidationService validationService, BankClient bankClient) {
+  public PaymentGatewayService(PaymentsRepository paymentsRepository,
+      PaymentValidationService validationService, BankClient bankClient) {
     this.paymentsRepository = paymentsRepository;
     this.validationService = validationService;
     this.bankClient = bankClient;
   }
 
   public PaymentResponse getPaymentById(UUID id) {
-    LOG.debug("Requesting access to to payment with ID {}", id);
-    return paymentsRepository.get(id).orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + id));
+    LOG.debug("Requesting access to payment with ID {}", id);
+    return paymentsRepository.get(id)
+        .orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + id));
   }
 
   public PaymentResponse processPayment(PostPaymentRequest request) {
@@ -50,12 +52,14 @@ public class PaymentGatewayService {
 
     BankPaymentResponse bankResponse = bankClient.processPayment(bankRequest);
 
-    PaymentStatus status = bankResponse.isAuthorized() ? PaymentStatus.AUTHORIZED : PaymentStatus.DECLINED;
+    PaymentStatus status =
+        bankResponse.isAuthorized() ? PaymentStatus.AUTHORIZED : PaymentStatus.DECLINED;
 
     PaymentResponse payment = new PaymentResponse();
     payment.setId(UUID.randomUUID());
     payment.setStatus(status);
-    payment.setCardNumberLastFour(request.getCardNumber().substring(request.getCardNumber().length() - 4));
+    payment.setCardNumberLastFour(
+        request.getCardNumber().substring(request.getCardNumber().length() - 4));
     payment.setExpiryMonth(request.getExpiryMonth());
     payment.setExpiryYear(request.getExpiryYear());
     payment.setCurrency(request.getCurrency());

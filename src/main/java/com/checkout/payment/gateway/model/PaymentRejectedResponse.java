@@ -4,6 +4,7 @@ import com.checkout.payment.gateway.enums.PaymentStatus;
 import java.util.List;
 
 public class PaymentRejectedResponse {
+
   private final PaymentStatus status = PaymentStatus.REJECTED;
   private final List<String> errors;
 
