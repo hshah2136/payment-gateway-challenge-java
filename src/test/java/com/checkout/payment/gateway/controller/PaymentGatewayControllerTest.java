@@ -3,10 +3,17 @@ package com.checkout.payment.gateway.controller;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.hasSize;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.checkout.payment.gateway.client.BankClient;
 import com.checkout.payment.gateway.enums.PaymentStatus;
+import com.checkout.payment.gateway.exception.BankUnavailableException;
+import com.checkout.payment.gateway.model.BankPaymentResponse;
 import com.checkout.payment.gateway.model.PaymentResponse;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -14,12 +21,15 @@ import java.time.YearMonth;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
@@ -33,6 +43,9 @@ class PaymentGatewayControllerTest {
   private ObjectMapper objectMapper;
   @Autowired
   PaymentsRepository paymentsRepository;
+
+  @MockBean
+  private BankClient bankClient;
 
   @Test
   void whenPaymentWithIdExistThenCorrectPaymentIsReturned() throws Exception {
@@ -162,6 +175,50 @@ class PaymentGatewayControllerTest {
     assertRejected(result, "Malformed request body");
   }
 
+  @Test
+  void whenBankAuthorizesThenPaymentIsAuthorizedAndCanBeRetrieved() throws Exception {
+    BankPaymentResponse bankResponse = new BankPaymentResponse();
+    bankResponse.setAuthorized(true);
+    when(bankClient.processPayment(any())).thenReturn(bankResponse);
+
+    MvcResult result = postPayment(validRequest())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("Authorized"))
+        .andExpect(jsonPath("$.card_number_last_four").value("8877"))
+        .andExpect(jsonPath("$.card_number").doesNotExist())
+        .andReturn();
+
+    String id = JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+
+    mvc.perform(MockMvcRequestBuilders.get("/payment/" + id))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(id))
+        .andExpect(jsonPath("$.status").value("Authorized"))
+        .andExpect(jsonPath("$.card_number_last_four").value("8877"));
+  }
+
+  @Test
+  void whenBankDeclinesThenPaymentIsDeclined() throws Exception {
+    BankPaymentResponse bankResponse = new BankPaymentResponse();
+    bankResponse.setAuthorized(false);
+    when(bankClient.processPayment(any())).thenReturn(bankResponse);
+
+    postPayment(validRequest())
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.status").value("Declined"))
+        .andExpect(jsonPath("$.card_number_last_four").value("8877"))
+        .andExpect(jsonPath("$.card_number").doesNotExist());
+  }
+
+  @Test
+  void whenBankUnavailableThenBadGatewayIsReturned() throws Exception {
+    when(bankClient.processPayment(any())).thenThrow(new BankUnavailableException("Bank request failed"));
+
+    postPayment(validRequest())
+        .andExpect(status().isBadGateway())
+        .andExpect(jsonPath("$.message").value("Bank unavailable, please try again later"));
+  }
+
   private Map<String, Object> validRequest() {
     Map<String, Object> request = new HashMap<>();
     request.put("card_number", "2222405343248877");
@@ -184,5 +241,6 @@ class PaymentGatewayControllerTest {
         .andExpect(jsonPath("$.status").value("Rejected"))
         .andExpect(jsonPath("$.errors", hasSize(1)))
         .andExpect(jsonPath("$.errors[0]").value(expectedError));
+    verify(bankClient, never()).processPayment(any());
   }
 }

@@ -57,6 +57,12 @@ public class CommonExceptionHandler {
         HttpStatus.INTERNAL_SERVER_ERROR);
   }
 
+  @ExceptionHandler(BankUnavailableException.class)
+  public ResponseEntity<ErrorResponse> handleBankUnavailableException(BankUnavailableException ex) {
+    LOG.error(ex.getMessage(), ex);
+    return new ResponseEntity<>(new ErrorResponse("Bank unavailable, please try again later"), HttpStatus.BAD_GATEWAY);
+  }
+
   private ResponseEntity<PaymentRejectedResponse> rejected(List<String> errors) {
     LOG.warn("Payment rejected: {}", errors);
     return new ResponseEntity<>(new PaymentRejectedResponse(errors), HttpStatus.BAD_REQUEST);

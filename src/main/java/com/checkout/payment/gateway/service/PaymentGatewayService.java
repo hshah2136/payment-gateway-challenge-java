@@ -1,8 +1,11 @@
 package com.checkout.payment.gateway.service;
 
+import com.checkout.payment.gateway.client.BankClient;
 import com.checkout.payment.gateway.enums.PaymentStatus;
 import com.checkout.payment.gateway.exception.PaymentNotFoundException;
 import com.checkout.payment.gateway.exception.PaymentRejectedException;
+import com.checkout.payment.gateway.model.BankPaymentRequest;
+import com.checkout.payment.gateway.model.BankPaymentResponse;
 import com.checkout.payment.gateway.model.PostPaymentRequest;
 import com.checkout.payment.gateway.model.PaymentResponse;
 import com.checkout.payment.gateway.repository.PaymentsRepository;
@@ -18,10 +21,12 @@ public class PaymentGatewayService {
 
   private final PaymentsRepository paymentsRepository;
   private final PaymentValidationService validationService;
+  private final BankClient bankClient;
 
-  public PaymentGatewayService(PaymentsRepository paymentsRepository, PaymentValidationService validationService) {
+  public PaymentGatewayService(PaymentsRepository paymentsRepository, PaymentValidationService validationService, BankClient bankClient) {
     this.paymentsRepository = paymentsRepository;
     this.validationService = validationService;
+    this.bankClient = bankClient;
   }
 
   public PaymentResponse getPaymentById(UUID id) {
@@ -34,7 +39,18 @@ public class PaymentGatewayService {
       throw new PaymentRejectedException("Expiry date must be in future");
     }
 
-    PaymentStatus status = PaymentStatus.AUTHORIZED;
+    BankPaymentRequest bankRequest = new BankPaymentRequest(
+        request.getCardNumber(),
+        request.getExpiryMonth(),
+        request.getExpiryYear(),
+        request.getCurrency(),
+        request.getAmount(),
+        request.getCvv()
+    );
+
+    BankPaymentResponse bankResponse = bankClient.processPayment(bankRequest);
+
+    PaymentStatus status = bankResponse.isAuthorized() ? PaymentStatus.AUTHORIZED : PaymentStatus.DECLINED;
 
     PaymentResponse payment = new PaymentResponse();
     payment.setId(UUID.randomUUID());
