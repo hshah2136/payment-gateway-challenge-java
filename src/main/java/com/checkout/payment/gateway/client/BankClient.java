@@ -23,8 +23,8 @@ public class BankClient {
     try {
       BankPaymentResponse response = restTemplate.postForObject(bankUrl, request,
           BankPaymentResponse.class);
-      if (response == null) {
-        throw new BankUnavailableException("Empty response from bank");
+      if (response == null || response.getAuthorized() == null) {
+        throw new BankUnavailableException("Empty or invalid response from bank");
       }
       return response;
     } catch (RestClientException ex) {

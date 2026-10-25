@@ -109,6 +109,22 @@ class PaymentGatewayControllerTest {
   }
 
   @Test
+  void whenExpiryYearTooLongThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("expiry_year", 10000);
+
+    assertRejected(postPayment(request), "Expiry year must be 4 digits");
+  }
+
+  @Test
+  void whenExpiryYearTwoDigitsThenPaymentIsRejected() throws Exception {
+    Map<String, Object> request = validRequest();
+    request.put("expiry_year", 30);
+
+    assertRejected(postPayment(request), "Expiry year must be 4 digits");
+  }
+
+  @Test
   void whenCurrencyNotSupportedThenPaymentIsRejected() throws Exception {
     Map<String, Object> request = validRequest();
     request.put("currency", "JPY");
@@ -146,6 +162,7 @@ class PaymentGatewayControllerTest {
             "Card number must be 14-19 digits",
             "Currency must be one of GBP, EUR, USD",
             "CVV must be 3-4 digits")));
+    verify(bankClient, never()).processPayment(any());
   }
 
   @Test

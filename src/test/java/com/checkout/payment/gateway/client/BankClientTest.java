@@ -3,6 +3,7 @@ package com.checkout.payment.gateway.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -37,12 +38,16 @@ class BankClientTest {
   void whenBankAuthorizesThenResponseIsReturned() {
     bankServer.expect(requestTo(BANK_URL))
         .andExpect(method(HttpMethod.POST))
+        .andExpect(content().json("""
+            {"card_number": "2222405343248877", "expiry_date": "04/2030",
+             "currency": "GBP", "amount": 100, "cvv": "123"}
+            """))
         .andRespond(withSuccess("{\"authorized\": true, \"authorization_code\": \"abc\"}",
             MediaType.APPLICATION_JSON));
 
     BankPaymentResponse response = bankClient.processPayment(bankRequest());
 
-    assertTrue(response.isAuthorized());
+    assertTrue(response.getAuthorized());
     assertEquals("abc", response.getAuthorizationCode());
     bankServer.verify();
   }
@@ -59,6 +64,14 @@ class BankClientTest {
   void whenBankReturnsEmptyBodyThenBankUnavailableExceptionIsThrown() {
     bankServer.expect(requestTo(BANK_URL))
         .andRespond(withSuccess());
+
+    assertThrows(BankUnavailableException.class, () -> bankClient.processPayment(bankRequest()));
+  }
+
+  @Test
+  void whenBankResponseHasNoAuthorizedFieldThenBankUnavailableExceptionIsThrown() {
+    bankServer.expect(requestTo(BANK_URL))
+        .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
     assertThrows(BankUnavailableException.class, () -> bankClient.processPayment(bankRequest()));
   }

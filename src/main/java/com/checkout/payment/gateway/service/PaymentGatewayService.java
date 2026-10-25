@@ -53,7 +53,7 @@ public class PaymentGatewayService {
     BankPaymentResponse bankResponse = bankClient.processPayment(bankRequest);
 
     PaymentStatus status =
-        bankResponse.isAuthorized() ? PaymentStatus.AUTHORIZED : PaymentStatus.DECLINED;
+        bankResponse.getAuthorized() ? PaymentStatus.AUTHORIZED : PaymentStatus.DECLINED;
 
     PaymentResponse payment = new PaymentResponse();
     payment.setId(UUID.randomUUID());

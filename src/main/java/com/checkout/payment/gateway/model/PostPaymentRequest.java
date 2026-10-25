@@ -6,9 +6,8 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
-import java.io.Serializable;
 
-public class PostPaymentRequest implements Serializable {
+public class PostPaymentRequest {
 
   @NotNull(message = "Card number is required")
   @Pattern(regexp = "\\d{14,19}", message = "Card number must be 14-19 digits")
@@ -22,6 +21,8 @@ public class PostPaymentRequest implements Serializable {
   private Integer expiryMonth;
 
   @NotNull(message = "Expiry year is required")
+  @Min(value = 1000, message = "Expiry year must be 4 digits")
+  @Max(value = 9999, message = "Expiry year must be 4 digits")
   @JsonProperty("expiry_year")
   private Integer expiryYear;
 
