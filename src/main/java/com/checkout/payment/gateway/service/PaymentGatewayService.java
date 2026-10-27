@@ -66,6 +66,7 @@ public class PaymentGatewayService {
     payment.setAmount(request.getAmount());
 
     paymentsRepository.add(payment);
+    LOG.info("Payment {} processed with status {}", payment.getId(), status);
     return payment;
   }
 }

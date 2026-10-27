@@ -112,4 +112,6 @@ Left out to keep the solution simple:
 - **A separate payment entity** for storage (e.g. to keep the bank's authorization code), rather than storing the API response.
 - **A persistent database** instead of in-memory storage, so payments survive a restart.
 - **Merchant authentication**, so merchants can only see their own payments.
+- **Observability**: metrics such as the number of authorized, declined and rejected payments and how long the bank takes to respond, and a request id in every log line so a single payment can be traced. Currently each processed payment is logged with its id and status (never card data).
+- **Packaging and deployment**: a Dockerfile so the gateway runs in a container alongside the simulator, and a CI pipeline that builds and tests every push. The bank URL can already be changed per environment with a `BANK_URL` environment variable.
 - **Automated end-to-end tests** against the real bank simulator (e.g. using Testcontainers to start it).
